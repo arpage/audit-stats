@@ -1,0 +1,15 @@
+
+# Raw weekly log file dumps (re-downloaded each week, not for version control)
+log-files/*
+!log-files/.gitkeep
+
+# Generated analysis outputs
+output/*
+!output/.gitkeep
+
+# PHP
+vendor/
+
+# OS
+.DS_Store
+Thumbs.db

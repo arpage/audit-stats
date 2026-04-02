@@ -1,0 +1,7 @@
+The system consists of several Cloud Foundry apps across 6 spaces (dr, dev, stage, prod, shared-egress, tools):
+- **CMS**: Drupal + nginx
+- **WAF**: nginx with ModSecurity rules
+- **cron**: Collects CF Event API messages
+- **WWW**: Static site generator (Tome)
+- **AnalyticsReporter**: Tracks page hit stats
+- **api-proxy / tools-proxy / prod-proxy / stage-proxy**: Egress proxy containers

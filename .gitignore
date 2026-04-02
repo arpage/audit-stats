@@ -1,0 +1,28 @@
+# Secrets and credentials
+**/.claude
+**/.env
+**/.mcp.json
+**/credentials.json
+**/token.json
+
+# PHP dependencies
+**/vendor/
+
+# Python dependencies
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/.venv/
+**/venv/
+**/env/
+
+# Temporary processing files
+**/.tmp/
+**/.token_log.jsonl
+
+# OS / editor
+**/.DS_Store
+**/Thumbs.db
+**/.idea/
+**/.vscode/
+**/*.swp

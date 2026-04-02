@@ -1,0 +1,11 @@
+{
+    "require": {
+        "anthropic-ai/sdk": "^0.7",
+        "guzzlehttp/guzzle": "^7.10"
+    },
+    "config": {
+        "allow-plugins": {
+            "php-http/discovery": true
+        }
+    }
+}
