@@ -115,22 +115,23 @@ Write a concise, focused per-week analysis report in Markdown. Structure it as f
    - Note SSH authorized/unauthorized counts
 
 4. **SSH Activity**:
-   - Session count and balance (started vs ended)
-   - Space and app breakdown if available
-   - Compare to prior weeks if data exists
+   - Table with columns: Space | Sessions Started | Sessions Ended (one row per space with activity, plus a Total row)
+   - Note the app breakdown (which app accounts for most sessions)
+   - Compare session count to prior weeks if data exists
 
 5. **CF API Messages**:
-   - Total row count and space/app breakdown if available
+   - Table with columns: Space | Row Count (one row per space, plus a Total row)
+   - Note the top apps by message volume in prose
    - Compare to prior weeks; explain any significant variance
 
 6. **Proxy Traffic**:
-   - Allowed: top destinations, note if at export cap
-   - Denied: count and destinations; note if file absent/empty (= zero denials)
+   - **Allowed**: Table with columns: Destination | Count, showing top destinations; note if at export cap
+   - **Denied**: Table with columns: Destination | Count, showing all denied destinations; if file absent/empty, state "No denials recorded" instead of a table
 
 7. **ModSecurity / WAF**:
-   - Total event count and top violation types
-   - Host breakdown if available
-   - Compare to prior weeks and note trend direction
+   - Table with columns: Violation | Count, showing top violation types (up to 10 rows)
+   - Table with columns: Host | Count, showing event breakdown by host
+   - Compare total event count to prior weeks and note trend direction
 
 8. **Data Quality**:
    - Note any missing files, parsing gaps, or format issues specific to this week
@@ -139,7 +140,7 @@ Write a concise, focused per-week analysis report in Markdown. Structure it as f
 9. **Items for Follow-Up** (if any):
    - Only include genuine action items. If the week was clean, say so and omit this section.
 
-Keep the report concise — aim for clarity over length. Use tables where they add value. Plain ASCII only — no emoji, no Unicode minus (use -), no Unicode approximately (use ~), no Greek letters (use plain words), no smart quotes.
+Keep the report concise — aim for clarity over length. Plain ASCII only — no emoji, no Unicode minus (use -), no Unicode approximately (use ~), no Greek letters (use plain words), no smart quotes.
 PROMPT;
 
 // Write prompt to temp file
