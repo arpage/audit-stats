@@ -100,47 +100,110 @@ $summary_json
 
 ## Your Task
 
-Write a concise, focused per-week analysis report in Markdown. Structure it as follows:
+Write a concise, focused per-week analysis report in Markdown. You MUST follow the exact structure and formatting rules below — do not deviate.
 
-1. **Week Summary** (3-4 sentences): Overall characterization of this week — was it a typical week, heavier/lighter than usual, any notable events?
+### Required document structure
 
-2. **Deployments**:
-   - Table showing prod and stage deployment counts, timing classification, and UTC window observed
-   - Were deployments on schedule? Were counts as expected (typically 9 per space)?
-   - Note if this is EST or EDT week and confirm the timestamps reflect the correct UTC offset
+The report MUST begin with these two lines exactly (substituting the correct date):
 
-3. **CF Events**:
-   - Event type breakdown table
-   - Highlight anything unusual (new event types, counts significantly above/below typical)
-   - Note SSH authorized/unauthorized counts
+```
+# Weekly Operations Report
 
-4. **SSH Activity**:
-   - Table with columns: Space | Sessions Started | Sessions Ended (one row per space with activity, plus a Total row)
-   - Note the app breakdown (which app accounts for most sessions)
-   - Compare session count to prior weeks if data exists
+**Week Ending:** YYYY-MM-DD
+```
 
-5. **CF API Messages**:
-   - Table with columns: Space | Row Count (one row per space, plus a Total row)
-   - Note the top apps by message volume in prose
-   - Compare to prior weeks; explain any significant variance
+Then the following sections in order:
 
-6. **Proxy Traffic**:
-   - **Allowed**: Table with columns: Destination | Count, showing top destinations; note if at export cap
-   - **Denied**: Table with columns: Destination | Count, showing all denied destinations; if file absent/empty, state "No denials recorded" instead of a table
+```
+## Week Summary
+## Deployments
+## CF Events
+## SSH Activity
+## CF API Messages
+## Proxy Traffic
+## ModSecurity / WAF
+## Data Quality
+## Items for Follow-Up
+```
 
-7. **ModSecurity / WAF**:
-   - Table with columns: Violation | Count, showing top violation types (up to 10 rows)
-   - Table with columns: Host | Count, showing event breakdown by host
-   - Compare total event count to prior weeks and note trend direction
+### Mandatory table rule
 
-8. **Data Quality**:
-   - Note any missing files, parsing gaps, or format issues specific to this week
-   - If no issues, state that explicitly ("No data quality issues this week.")
+Every section below that specifies a table MUST contain that table. You may NOT replace a required table with prose, even when data is sparse, minimal, or appears unremarkable. The only exception is Proxy Traffic Denied: if there are zero denials, write "No denials recorded." instead of a table. All other tables are unconditional.
 
-9. **Items for Follow-Up** (if any):
-   - Only include genuine action items. If the week was clean, say so and omit this section.
+### Section-by-section formatting rules
 
-Keep the report concise — aim for clarity over length. Plain ASCII only — no emoji, no Unicode minus (use -), no Unicode approximately (use ~), no Greek letters (use plain words), no smart quotes.
+**## Week Summary**
+3-4 sentence paragraph. No sub-headers.
+
+**## Deployments**
+REQUIRED TABLE with EXACTLY these columns (no renaming):
+| Space | Deployment Count | On Time | Outside Window | UTC Window Observed |
+
+- "Outside Window" MUST be an integer count (0, 1, 2, ...) — never Yes/No/boolean
+- "UTC Window Observed" MUST be a full date+time range: "YYYY-MM-DD HH:MM - HH:MM" (include the date, not time only)
+- Follow with bullet points noting EST vs EDT, schedule adherence, and expected count (typically 9 per space)
+
+**## CF Events**
+REQUIRED TABLE: | Event Type | Count |
+List all event types from the metrics. Follow with 1-2 sentence narrative.
+
+**## SSH Activity**
+REQUIRED TABLE: | Space | Sessions Started | Sessions Ended |
+- One row per space with activity
+- Total row MUST use bold markdown: | **Total** | **N** | **N** |
+- Follow with 1 sentence noting the dominant app and any anomalies
+
+**## CF API Messages**
+REQUIRED TABLE: | Space | Row Count |
+- Include all spaces present in the metrics — do not omit any
+- Space names MUST NOT be abbreviated. Use full names: "Shared-egress" not "Shared-egr"
+- Total row MUST use bold markdown: | **Total** | **N** |
+- Follow with 1 sentence on top apps by volume and comparison to prior weeks
+
+**## Proxy Traffic**
+This section uses BOLD LABELS (not sub-headers) for the two sub-sections:
+
+```
+**Allowed:**
+<table>
+
+**Denied:**
+<table or "No denials recorded.">
+```
+
+Do NOT use ### sub-headers here. Bold labels only.
+
+- Allowed: REQUIRED TABLE | Destination | Count |, top destinations; note if at export cap (5000 rows)
+- Denied: REQUIRED TABLE | Destination | Count | if denials exist; if no denials, write exactly "No denials recorded." with no table
+
+**## ModSecurity / WAF**
+This section uses BOLD LABELS (not sub-headers) for the two sub-sections:
+
+```
+**Violations:**
+<table>
+
+**Hosts:**
+<table>
+<narrative sentence>
+```
+
+Do NOT use ### sub-headers here. Bold labels only.
+
+- Violations: REQUIRED TABLE | Violation | Count |, all violation types from the metrics (up to 10 rows)
+- Hosts: REQUIRED TABLE | Host | Count |, all hosts from the metrics
+- Follow with 1 sentence comparing total event count to prior weeks
+
+**## Data Quality**
+Paragraph noting missing files, parsing gaps, or format issues. If no issues: "No data quality issues this week."
+
+**## Items for Follow-Up**
+Only genuine action items. If none, write one sentence saying the week was clean (do not omit the section).
+
+### General rules
+
+- Plain ASCII only — no emoji, no Unicode minus (use -), no Unicode approximately (use ~), no Greek letters (use plain words), no smart quotes
+- Keep the report concise — aim for clarity over length
 PROMPT;
 
 // Write prompt to temp file
@@ -184,9 +247,22 @@ if (!$response || empty($response['response'])) {
     exit(1);
 }
 
-$markdown = $response['response'];
-$header = "<!-- Week report: $week | Generated: " . date('Y-m-d H:i:s') . " UTC -->\n\n";
-file_put_contents($report_md, $header . $markdown);
+$markdown  = $response['response'];
+$generated = date('Y-m-d H:i:s') . ' UTC';
+$header    = "<!-- Week report: $week | Generated: $generated -->\n\n";
+
+// Format-specific footer blocks: HTML and LaTeX (PDF) each get the appropriate syntax.
+// The {=html} block is ignored by pdflatex; the {=latex} block is ignored by pandoc HTML output.
+$footer = "\n\n" .
+    "```{=html}\n" .
+    '<div style="text-align: center; font-size: 0.75em; font-family: monospace; color: #888; margin-top: 3em; padding-top: 0.75em; border-top: 1px solid #ddd;">Generated: ' . $generated . "</div>\n" .
+    "```\n\n" .
+    "```{=latex}\n" .
+    '\\vspace{2em}' . "\n" .
+    '\\begin{center}{\\small\\ttfamily Generated: ' . $generated . '}\\end{center}' . "\n" .
+    "```";
+
+file_put_contents($report_md, $header . $markdown . $footer);
 echo "Report written: $report_md\n";
 
 // Export HTML

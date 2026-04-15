@@ -92,7 +92,15 @@ php ../../tools/markdown_to_html.php output/<YYYY-MM-DD>-report.md
 php ../../tools/markdown_to_pdf.php output/<YYYY-MM-DD>-report.md
 ```
 
-### 8. Review the outputs
+### 8. Update the shareable package
+
+```bash
+php tools/generate_shareable_package.php
+```
+
+This regenerates `output/index.html` and `output/audit-stats.zip` to reflect all current reports. Run this every time after completing the analysis cycle.
+
+### 9. Review the outputs
 
 **Per-week reports** — for each week, verify:
 - The week summary accurately characterises the week (typical / heavier / lighter)
@@ -117,6 +125,8 @@ php ../../tools/markdown_to_pdf.php output/<YYYY-MM-DD>-report.md
 | `output/<last-week-end>-report.html` | Self-contained HTML version of the cross-week report |
 | `output/<last-week-end>-report.pdf` | PDF version of the cross-week report |
 | `output/summary.json` | Machine-readable week-over-week metrics (updated in step 3) |
+| `output/index.html` | Navigation page linking all reports (updated in step 8) |
+| `output/audit-stats.zip` | Zip archive of all output files for sharing (updated in step 8) |
 
 ## Error handling
 

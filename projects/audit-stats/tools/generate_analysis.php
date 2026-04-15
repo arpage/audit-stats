@@ -110,6 +110,7 @@ $data_notes = empty($notes)
 
 $metrics_json = json_encode($all_metrics, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 $summary_json = $summary ? json_encode($summary, JSON_PRETTY_PRINT) : 'null';
+$week_cols    = implode(' | ', $weeks);
 
 $prompt = <<<PROMPT
 You are analyzing $week_count weeks of Cloud Foundry audit log data for a US government website (usa.gov). The logs are exported weekly from New Relic.
@@ -144,31 +145,60 @@ $data_notes
 
 ## Your Task
 
-Write a comprehensive analysis report in Markdown. The report should include:
+Write a comprehensive cross-week analysis report in Markdown covering all $week_count weeks ($week_cols).
 
-1. **Executive Summary** (3–5 sentences): Overall health and consistency of the system across these 4 weeks.
+### Mandatory table rule
 
-2. **Deployment Pattern Analysis**: Were prod and stage deployments present and on schedule each week? Note the slightly lower deployment counts for week ending 2026-03-23.
+Every section below that specifies a REQUIRED TABLE must contain that table. You may NOT replace a required table with prose, even when data is sparse or unremarkable. Use the actual week-end dates as column headers, not generic labels like "Week 1".
 
-3. **CF Events Activity**: Summarize event types observed. Note SSH authorization counts (these are high — flag if unexpectedly so). Highlight the one `audit.app.ssh-unauthorized` event in week 1.
+### Required sections and tables
 
-4. **SSH Activity**: Week-over-week trends. Which spaces and apps were most accessed. Note week 3 (2026-03-16) had noticeably fewer SSH sessions (56 vs 99–115 in other weeks).
+**1. Executive Summary** (3-5 sentences): Overall health and consistency across all $week_count weeks. No table.
 
-5. **CF API Messages**: Explain the large variation in row counts across weeks. The high dev space activity is expected during development cycles.
+**2. Deployment Pattern Analysis**
+REQUIRED TABLE - columns: Space | $week_cols
+Rows: prod (deployment count), stage (deployment count)
+Note any weeks with below-expected counts (expected: 9 per space), and whether all deployments were on time.
 
-6. **Proxy Traffic**:
-   - Allowed: all weeks at the 5000-row New Relic cap; note this limits visibility. Top destinations (api.fr.cloud.gov, Google Analytics APIs, New Relic, login.fr.cloud.gov) appear normal for this system.
-   - Denied: missing for week 2, zero for week 1, low counts for weeks 3–4 (2 and 3 rows). Describe what this means.
+**3. CF Events Activity**
+REQUIRED TABLE - columns: Event Type | $week_cols
+Include all event types observed across any week; use 0 for absent weeks.
+Follow with 1-2 sentence narrative noting anything unusual (e.g., ssh-unauthorized events).
 
-7. **ModSecurity / WAF Activity**: Summarize the top violation types (failed body parsing errors dominate). Note the upward trend from 328 to 541 total events over the 4 weeks. Assess whether this is concerning.
+**4. SSH Activity**
+REQUIRED TABLE - columns: Metric | $week_cols
+Rows: Sessions Started, Sessions Ended
+Follow with narrative on which space/app dominated and notable week-over-week changes.
 
-8. **Data Quality Notes**: The missing Proxy-DENIED file for week 2, the timestamp format change, and the proxy_allowed export cap.
+**5. CF API Messages**
+REQUIRED TABLE - columns: Week | Row Count
+One row per week.
+Follow with narrative on variation and which spaces/apps drove it.
 
-9. **Conclusion**: Overall assessment — is activity consistent and within expected norms? Are there any items that warrant follow-up investigation?
+**6. Proxy Traffic**
 
-Format the report with clear Markdown headings, use tables where useful (e.g., week-over-week metric comparison), and keep language precise and professional. This report is for a security and operations audience.
+Allowed:
+REQUIRED TABLE - columns: Week | Row Count | At Cap
+"At Cap" = Yes or No (cap = 5000 rows). Note that capped weeks have underreported actual traffic.
 
-**Important formatting constraint:** Do NOT use any Unicode special characters — no emoji (✅ ❌), no Unicode minus (−), no Unicode approximately (≈), no Greek letters (Δ), no smart quotes, and no other non-ASCII symbols. Use plain ASCII equivalents instead: - for minus, ~ for approximately, "Change" for delta, Yes/No instead of checkmarks.
+Denied:
+REQUIRED TABLE - columns: Week | Denied Count
+Use 0 for weeks with no denials or missing file. Briefly explain significance.
+
+**7. ModSecurity / WAF Activity**
+REQUIRED TABLE - columns: Week | Total Events
+One row per week.
+Follow with assessment of the trend and the dominant violation types.
+
+**8. Data Quality Notes**: Notable missing files, format issues, or data limitations. No table required.
+
+**9. Conclusion**: Overall assessment — is activity consistent and within expected norms? Are there items warranting follow-up investigation? No table required.
+
+### General formatting rules
+
+- Plain ASCII only — no emoji, no Unicode minus (use -), no Unicode approximately (use ~), no Greek letters (use plain words), no smart quotes
+- Use Markdown headings for each section
+- Keep language precise and professional — this report is for a security and operations audience
 PROMPT;
 
 // Write prompt to temp file
@@ -199,10 +229,21 @@ if (!$response || empty($response['response'])) {
     exit(1);
 }
 
-$markdown = $response['response'];
+$markdown  = $response['response'];
+$generated = date('Y-m-d H:i:s') . ' UTC';
 
 // Add generation metadata header
-$header = "<!-- Generated: " . date('Y-m-d H:i:s') . " UTC | Weeks: " . implode(', ', $weeks) . " -->\n\n";
-// Note: concatenation used intentionally — date() and implode() calls cannot be inlined in PHP string interpolation.
-file_put_contents($report_file, $header . $markdown);
+$header = "<!-- Generated: $generated | Weeks: " . implode(', ', $weeks) . " -->\n\n";
+
+// Format-specific footer blocks (same pattern as generate_week_report.php)
+$footer = "\n\n" .
+    "```{=html}\n" .
+    '<div style="text-align: center; font-size: 0.75em; font-family: monospace; color: #888; margin-top: 3em; padding-top: 0.75em; border-top: 1px solid #ddd;">Generated: ' . $generated . "</div>\n" .
+    "```\n\n" .
+    "```{=latex}\n" .
+    '\\vspace{2em}' . "\n" .
+    '\\begin{center}{\\small\\ttfamily Generated: ' . $generated . '}\\end{center}' . "\n" .
+    "```";
+
+file_put_contents($report_file, $header . $markdown . $footer);
 echo "Report written: $report_file\n";
