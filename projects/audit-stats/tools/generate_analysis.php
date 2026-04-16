@@ -18,6 +18,22 @@ load_env(__DIR__ . '/..');
 
 $system_context = trim(file_get_contents(__DIR__ . '/../config/system-context.txt'));
 
+// Parse optional --through YYYY-MM-DD argument
+$through_date = null;
+foreach ($argv as $arg) {
+    if (preg_match('/^--through=(\d{4}-\d{2}-\d{2})$/', $arg, $m)) {
+        $through_date = $m[1];
+    } elseif (preg_match('/^--through$/', $arg)) {
+        $idx = array_search($arg, $argv);
+        if (isset($argv[$idx + 1]) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $argv[$idx + 1])) {
+            $through_date = $argv[$idx + 1];
+        }
+    }
+}
+if ($through_date) {
+    echo "Scoping analysis to weeks on or before $through_date\n";
+}
+
 // Load metrics files in date order
 $files = glob("$tmp_dir/*-metrics.json");
 sort($files);
@@ -29,7 +45,14 @@ if (empty($files)) {
 $all_metrics = [];
 foreach ($files as $f) {
     $m = json_decode(file_get_contents($f), true);
-    if ($m) $all_metrics[] = $m;
+    if ($m) {
+        if ($through_date && ($m['week_end'] ?? '') > $through_date) continue;
+        $all_metrics[] = $m;
+    }
+}
+if (empty($all_metrics)) {
+    fwrite(STDERR, "No metrics found" . ($through_date ? " on or before $through_date" : "") . "\n");
+    exit(1);
 }
 
 $weeks      = array_column($all_metrics, 'week_end');
@@ -147,6 +170,18 @@ $data_notes
 
 Write a comprehensive cross-week analysis report in Markdown covering all $week_count weeks ($week_cols).
 
+### Mandatory document structure
+
+The report MUST begin with exactly these two lines (substituting the correct dates):
+
+```
+# Cross-Week Analysis Report: <first-week-end> to <last-week-end>
+
+**Weeks covered:** <first-week-end> to <last-week-end>
+```
+
+Then the 9 numbered sections below in order.
+
 ### Mandatory table rule
 
 Every section below that specifies a REQUIRED TABLE must contain that table. You may NOT replace a required table with prose, even when data is sparse or unremarkable. Use the actual week-end dates as column headers, not generic labels like "Week 1".
@@ -247,3 +282,15 @@ $footer = "\n\n" .
 
 file_put_contents($report_file, $header . $markdown . $footer);
 echo "Report written: $report_file\n";
+
+// Export HTML
+$cmd_html = sprintf('php %s %s', escapeshellarg("$meta_root/tools/markdown_to_html.php"), escapeshellarg($report_file));
+passthru($cmd_html);
+
+// Export PDF
+$cmd_pdf = sprintf('php %s %s', escapeshellarg("$meta_root/tools/markdown_to_pdf.php"), escapeshellarg($report_file));
+passthru($cmd_pdf, $pdf_exit);
+
+if ($pdf_exit !== 0) {
+    echo "Note: PDF export failed — check for unsupported characters in the report.\n";
+}

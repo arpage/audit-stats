@@ -60,16 +60,41 @@ Load `output/summary.json` if it exists. Compare this week's metrics to:
 - The same metrics from previous weeks
 - Flag any values that are more than 2× or less than 0.5× the rolling average (where enough weeks of data exist)
 
-### 5. Synthesise the report via AI
+### 5. Generate the per-week report via AI
 
-Call `call_ai.php` with the extracted metrics and any flagged anomalies. Ask it to produce:
-- A concise executive summary (3–5 sentences)
-- A section for each file type (key counts, notable observations)
-- A deployment pattern section (present / absent / anomalous)
-- An anomalies section (week-over-week deviations, if prior data exists)
-- A conclusion (overall assessment: consistent / minor deviations / significant deviations)
+Run `generate_week_report.php`, which constructs the prompt from the parsed metrics and `output/summary.json`, calls Claude, and writes the report. The tool automatically exports HTML and PDF.
 
-Save the raw output to `output/<YYYY-MM-DD>-report.md`.
+```bash
+php tools/generate_week_report.php <YYYY-MM-DD>
+```
+
+#### Required per-week report structure
+
+The tool enforces this structure via its prompt. It is documented here as the canonical reference for reviewing output and detecting prompt drift:
+
+```
+# Weekly Operations Report
+**Week Ending:** YYYY-MM-DD
+```
+
+| Section | Required table / content |
+|---------|--------------------------|
+| `## Week Summary` | 3–4 sentence paragraph. No sub-headers. |
+| `## Deployments` | `\| Space \| Deployment Count \| On Time \| Outside Window \| UTC Window Observed \|` — "Outside Window" is an integer count; "UTC Window Observed" includes date + time range |
+| `## CF Events` | `\| Event Type \| Count \|` |
+| `## SSH Activity` | `\| Space \| Sessions Started \| Sessions Ended \|` — bold Total row |
+| `## CF API Messages` | `\| Space \| Row Count \|` — full space names (e.g. "Shared-egress" not "Shared-egr"); bold Total row |
+| `## Proxy Traffic` | **Bold labels only** (not `###` headers): `**Allowed:**` table `\| Destination \| Count \|`; `**Denied:**` table `\| Destination \| Count \|` or exactly "No denials recorded." |
+| `## ModSecurity / WAF` | **Bold labels only**: `**Violations:**` table `\| Violation \| Count \|`; `**Hosts:**` table `\| Host \| Count \|` |
+| `## Data Quality` | Paragraph. "No data quality issues this week." if clean. |
+| `## Items for Follow-Up` | Action items, or one sentence confirming the week was clean. |
+
+If the generated report is missing tables, uses `###` sub-headers in Proxy or ModSecurity sections, or has a title other than `# Weekly Operations Report`, the prompt in `generate_week_report.php` has drifted — edit it to restore compliance with this spec before regenerating.
+
+Outputs written to:
+- `output/<YYYY-MM-DD>-week-report.md`
+- `output/<YYYY-MM-DD>-week-report.html`
+- `output/<YYYY-MM-DD>-week-report.pdf`
 
 ### 6. Update summary.json
 
@@ -96,11 +121,14 @@ Append (or update) the entry for this week in `output/summary.json`. Schema:
 }
 ```
 
-### 7. Export the report
+### 7. Verify the report
 
-```bash
-php ../../tools/markdown_to_html.php output/<YYYY-MM-DD>-report.md
-php ../../tools/markdown_to_pdf.php output/<YYYY-MM-DD>-report.md
+`generate_week_report.php` automatically exports HTML and PDF — no separate export step needed. Confirm the three output files exist:
+
+```
+output/<YYYY-MM-DD>-week-report.md
+output/<YYYY-MM-DD>-week-report.html
+output/<YYYY-MM-DD>-week-report.pdf
 ```
 
 ## Error handling

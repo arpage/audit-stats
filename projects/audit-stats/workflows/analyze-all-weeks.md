@@ -55,12 +55,10 @@ This is safe to re-run — existing entries are updated, new ones appended, and 
 
 ### 4. Generate per-week summary reports
 
-Run `generate_week_report.php` for each week in chronological order (oldest first). Each report compares that week's data to all preceding weeks using `output/summary.json`.
+Run `generate_week_report.php` for each week in chronological order (oldest first). Each report compares that week's data to all preceding weeks using `output/summary.json`. The tool automatically exports HTML and PDF — no additional commands needed.
 
 ```bash
 php tools/generate_week_report.php <YYYY-MM-DD>
-php ../../tools/markdown_to_html.php output/<YYYY-MM-DD>-week-report.md
-php ../../tools/markdown_to_pdf.php output/<YYYY-MM-DD>-week-report.md
 ```
 
 Repeat for each week. Process oldest to newest so the comparison context in each report reflects the correct set of prior weeks.
@@ -75,22 +73,54 @@ Repeat for each week. Process oldest to newest so the comparison context in each
 
 If the prompt needs structural changes, edit `generate_analysis.php` before continuing. For routine runs, proceed directly to step 6.
 
+#### Required cross-week report structure
+
+The tool enforces this structure via its prompt. It is documented here as the canonical reference for reviewing output and detecting prompt drift:
+
+The report must begin with:
+```
+# Cross-Week Analysis Report: <first-week-end> to <last-week-end>
+**Weeks covered:** <first-week-end> to <last-week-end>
+```
+
+| # | Section | Required table |
+|---|---------|----------------|
+| 1 | Executive Summary | None — 3–5 sentence narrative |
+| 2 | Deployment Pattern Analysis | `\| Space \| <week1> \| <week2> \| ... \|` — rows: prod, stage |
+| 3 | CF Events Activity | `\| Event Type \| <week1> \| <week2> \| ... \|` — all event types, 0 for absent weeks |
+| 4 | SSH Activity | `\| Metric \| <week1> \| <week2> \| ... \|` — rows: Sessions Started, Sessions Ended |
+| 5 | CF API Messages | `\| Week \| Row Count \|` — one row per week |
+| 6 | Proxy Traffic | **Allowed:** `\| Week \| Row Count \| At Cap \|`; **Denied:** `\| Week \| Denied Count \|` |
+| 7 | ModSecurity / WAF Activity | `\| Week \| Total Events \|` — one row per week |
+| 8 | Data Quality Notes | None |
+| 9 | Conclusion | None |
+
+Section headings must be numbered (`## 1. Executive Summary`, etc.). Week column headers must use actual week-end dates, not generic labels like "Week 1".
+
+If the generated report is missing tables or uses incorrect section names, the prompt in `generate_analysis.php` has drifted — edit it to restore compliance with this spec before regenerating.
+
 ### 6. Run the cross-week analysis
 
 ```bash
 php tools/generate_analysis.php
 ```
 
-This reads all `.tmp/*-metrics.json` files in date order, generates data notes dynamically, calls `call_ai.php`, and writes the report to `output/<last-week-end>-report.md`.
+This reads all `.tmp/*-metrics.json` files in date order, generates data notes dynamically, calls `call_ai.php`, writes the report to `output/<last-week-end>-report.md`, and automatically exports HTML and PDF.
 
 Retry up to once on API failure. If it fails again, the raw prompt is saved to `.tmp/analysis-prompt.txt` and can be submitted manually.
 
-### 7. Export the cross-week report
+**Regenerating a historical report:** To regenerate a cross-week report for a specific past date (e.g., to fix format drift in an older report), use `--through` to scope the analysis to only weeks up to and including that date:
 
 ```bash
-php ../../tools/markdown_to_html.php output/<YYYY-MM-DD>-report.md
-php ../../tools/markdown_to_pdf.php output/<YYYY-MM-DD>-report.md
+php tools/generate_analysis.php --through 2026-03-30
 ```
+
+### 7. Verify the cross-week report
+
+HTML and PDF are generated automatically by `generate_analysis.php` — no separate export step needed. Check the output:
+- `output/<YYYY-MM-DD>-report.md` — Markdown with 9 numbered sections and all required tables
+- `output/<YYYY-MM-DD>-report.html` — self-contained HTML
+- `output/<YYYY-MM-DD>-report.pdf` — PDF
 
 ### 8. Update the shareable package
 

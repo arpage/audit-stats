@@ -18,35 +18,24 @@ $zip_file = "$out_dir/audit-stats.zip";
 
 // ─── Discover all report files ───────────────────────────────────────────────
 
-$html_files = [];
-$pdf_files = [];
-$md_files = [];
+$all_files = ['html' => [], 'pdf' => [], 'md' => []];
 
 $iterator = new DirectoryIterator($out_dir);
 foreach ($iterator as $file) {
     if ($file->isFile()) {
         $name = $file->getFilename();
         $ext = $file->getExtension();
-        
+
         // Skip system files
         if ($name === '.gitkeep' || $name === '.token_log.jsonl' || $name === 'summary.json' || $name === 'index.html' || $name === 'audit-stats.zip') {
             continue;
         }
-        
-        if ($ext === 'html') {
-            $html_files[] = $name;
-        } elseif ($ext === 'pdf') {
-            $pdf_files[] = $name;
-        } elseif ($ext === 'md') {
-            $md_files[] = $name;
+
+        if (isset($all_files[$ext])) {
+            $all_files[$ext][] = $name;
         }
     }
 }
-
-// Sort files by date (newest first)
-rsort($html_files);
-rsort($pdf_files);
-rsort($md_files);
 
 // ─── Extract dates and build report groups ───────────────────────────────────
 
@@ -63,53 +52,69 @@ function formatDate($dateStr) {
     return date('F j, Y', $ts);
 }
 
-// Group files by date
-$reports = [];
-foreach ($html_files as $f) {
-    $date = extractDate($f);
-    if (!isset($reports[$date])) $reports[$date] = [];
-    $reports[$date]['html'] = $f;
-}
-foreach ($pdf_files as $f) {
-    $date = extractDate($f);
-    if (!isset($reports[$date])) $reports[$date] = [];
-    $reports[$date]['pdf'] = $f;
-}
-foreach ($md_files as $f) {
-    $date = extractDate($f);
-    if (!isset($reports[$date])) $reports[$date] = [];
-    $reports[$date]['md'] = $f;
+// Classify a filename as 'week' (per-week report), 'analysis' (cross-week), or 'other'
+function reportType($filename) {
+    if (preg_match('/-week-report\.\w+$/', $filename)) return 'week';
+    if (preg_match('/-report\.\w+$/', $filename))      return 'analysis';
+    return 'other';
 }
 
-// Sort by date descending
-krsort($reports);
+// Build two separate report groups
+$week_reports     = [];
+$analysis_reports = [];
+
+foreach ($all_files as $ext => $files) {
+    rsort($files);
+    foreach ($files as $f) {
+        $date = extractDate($f);
+        $type = reportType($f);
+        if ($type === 'week') {
+            if (!isset($week_reports[$date])) $week_reports[$date] = [];
+            $week_reports[$date][$ext] = $f;
+        } elseif ($type === 'analysis') {
+            if (!isset($analysis_reports[$date])) $analysis_reports[$date] = [];
+            $analysis_reports[$date][$ext] = $f;
+        }
+    }
+}
+
+// Sort each group by date descending
+krsort($week_reports);
+krsort($analysis_reports);
 
 // ─── Generate index.html ─────────────────────────────────────────────────────
 
-$report_rows = '';
-foreach ($reports as $date => $files) {
-    $formatted_date = formatDate($date);
-    $html_link = isset($files['html']) 
-        ? "<a href=\"" . htmlspecialchars($files['html']) . "\">HTML</a>" 
-        : '<span style="color:#999">N/A</span>';
-    $pdf_link = isset($files['pdf']) 
-        ? "<a href=\"" . htmlspecialchars($files['pdf']) . "\">PDF</a>" 
-        : '<span style="color:#999">N/A</span>';
-    $md_link = isset($files['md']) 
-        ? "<a href=\"" . htmlspecialchars($files['md']) . "\">Markdown</a>" 
-        : '<span style="color:#999">N/A</span>';
-    
-    $report_rows .= "    <tr>\n";
-    $report_rows .= "      <td>$formatted_date</td>\n";
-    $report_rows .= "      <td>$date</td>\n";
-    $report_rows .= "      <td>$html_link</td>\n";
-    $report_rows .= "      <td>$pdf_link</td>\n";
-    $report_rows .= "      <td>$md_link</td>\n";
-    $report_rows .= "    </tr>\n";
+function buildRows($reports) {
+    $rows = '';
+    foreach ($reports as $date => $files) {
+        $formatted_date = formatDate($date);
+        $html_link = isset($files['html'])
+            ? "<a href=\"" . htmlspecialchars($files['html']) . "\">HTML</a>"
+            : '<span style="color:#999">N/A</span>';
+        $pdf_link = isset($files['pdf'])
+            ? "<a href=\"" . htmlspecialchars($files['pdf']) . "\">PDF</a>"
+            : '<span style="color:#999">N/A</span>';
+        $md_link = isset($files['md'])
+            ? "<a href=\"" . htmlspecialchars($files['md']) . "\">Markdown</a>"
+            : '<span style="color:#999">N/A</span>';
+
+        $rows .= "    <tr>\n";
+        $rows .= "      <td>$formatted_date</td>\n";
+        $rows .= "      <td>$date</td>\n";
+        $rows .= "      <td>$html_link</td>\n";
+        $rows .= "      <td>$pdf_link</td>\n";
+        $rows .= "      <td>$md_link</td>\n";
+        $rows .= "    </tr>\n";
+    }
+    return $rows;
 }
 
-$generated_date = date('Y-m-d H:i:s T');
-$total_reports = count($reports);
+$week_rows     = buildRows($week_reports);
+$analysis_rows = buildRows($analysis_reports);
+
+$generated_date   = date('Y-m-d H:i:s T');
+$total_week       = count($week_reports);
+$total_analysis   = count($analysis_reports);
 
 $html_content = <<<HTML
 <!DOCTYPE html>
@@ -279,7 +284,10 @@ $html_content = <<<HTML
 
     <div class="stats-bar">
       <div class="stat-item">
-        <strong>$total_reports</strong> weekly reports
+        <strong>$total_week</strong> per-week reports
+      </div>
+      <div class="stat-item">
+        <strong>$total_analysis</strong> cross-week analyses
       </div>
       <div class="stat-item">
         Generated: <strong>$generated_date</strong>
@@ -288,7 +296,7 @@ $html_content = <<<HTML
 
     <div class="card">
       <div class="card-header">
-        <h2>Weekly Reports</h2>
+        <h2>Per-Week Reports</h2>
         <a href="audit-stats.zip" class="btn btn-primary">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Download ZIP
@@ -305,7 +313,27 @@ $html_content = <<<HTML
           </tr>
         </thead>
         <tbody>
-$report_rows
+$week_rows
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>Cross-Week Analysis</h2>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Through</th>
+            <th>Date Code</th>
+            <th>HTML</th>
+            <th>PDF</th>
+            <th>Markdown</th>
+          </tr>
+        </thead>
+        <tbody>
+$analysis_rows
         </tbody>
       </table>
     </div>
