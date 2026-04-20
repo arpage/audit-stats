@@ -212,11 +212,13 @@ Follow with narrative on variation and which spaces/apps drove it.
 
 **6. Proxy Traffic**
 
-Allowed:
+Use BOLD LABELS (not ### sub-headers) for the two sub-sections, exactly as shown:
+
+**Allowed:**
 REQUIRED TABLE - columns: Week | Row Count | At Cap
 "At Cap" = Yes or No (cap = 5000 rows). Note that capped weeks have underreported actual traffic.
 
-Denied:
+**Denied:**
 REQUIRED TABLE - columns: Week | Denied Count
 Use 0 for weeks with no denials or missing file. Briefly explain significance.
 

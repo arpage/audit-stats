@@ -90,7 +90,7 @@ The report must begin with:
 | 3 | CF Events Activity | `\| Event Type \| <week1> \| <week2> \| ... \|` — all event types, 0 for absent weeks |
 | 4 | SSH Activity | `\| Metric \| <week1> \| <week2> \| ... \|` — rows: Sessions Started, Sessions Ended |
 | 5 | CF API Messages | `\| Week \| Row Count \|` — one row per week |
-| 6 | Proxy Traffic | **Allowed:** `\| Week \| Row Count \| At Cap \|`; **Denied:** `\| Week \| Denied Count \|` |
+| 6 | Proxy Traffic | Bold labels only (not `###` headers): `**Allowed:**` table `\| Week \| Row Count \| At Cap \|`; `**Denied:**` table `\| Week \| Denied Count \|` |
 | 7 | ModSecurity / WAF Activity | `\| Week \| Total Events \|` — one row per week |
 | 8 | Data Quality Notes | None |
 | 9 | Conclusion | None |
